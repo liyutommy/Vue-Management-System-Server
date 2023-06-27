@@ -6,12 +6,16 @@ const onerror = require("koa-onerror");
 const bodyparser = require("koa-bodyparser");
 // const logger = require('koa-logger')
 const log4js = require("./utils/log4js");
+const router = require("koa-router")();
 
-const index = require("./routes/index");
+// const index = require("./routes/index");
 const users = require("./routes/users");
 
 // error handler
 onerror(app);
+
+// 连接数据库
+require("./config/db");
 
 // middlewares
 // 解析数据体
@@ -44,13 +48,22 @@ app.use(async (ctx, next) => {
 	// const ms = new Date() - start
 	// console.log(`${ctx.method} ${ctx.url} - ${ms}ms`)
 
+	// 演示正确日志输出
+	log4js.info(`get params: ${JSON.stringify(ctx.request.query)}`);
+	log4js.info(`post params: ${JSON.stringify(ctx.request.body)}`);
 	await next();
-	log4js.info(`log output`);  // 演示正确日志输出
 });
 
 // routes
-app.use(index.routes(), index.allowedMethods());
-app.use(users.routes(), users.allowedMethods());
+// app.use(index.routes(), index.allowedMethods());
+// app.use(users.routes(), users.allowedMethods());
+
+// 一级路由前缀
+router.prefix("/api");
+// 注册二级路由
+router.use(users.routes(), users.allowedMethods());
+// 给app注册路由
+app.use(router.routes(), router.allowedMethods());
 
 // error-handling
 app.on("error", (err, ctx) => {
