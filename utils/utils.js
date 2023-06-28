@@ -47,6 +47,7 @@ const utils = {
 			msg,
 		};
 	},
+	CODE,
 };
 
 module.exports = utils;

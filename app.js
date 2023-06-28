@@ -54,7 +54,15 @@ app.use(async (ctx, next) => {
 	// 演示正确日志输出
 	log4js.info(`get params: ${JSON.stringify(ctx.request.query)}`);
 	log4js.info(`post params: ${JSON.stringify(ctx.request.body)}`);
-	await next();
+	// 这里提前捕捉错误
+	await next().catch((err) => {
+		if (err.status === "401") {
+			ctx.response.status = 200;
+			ctx.response.body = utils.fail("Token认证失败", util.CODE.AUTH_ERROR);
+		} else {
+			throw err;
+		}
+	});
 });
 
 // routes
@@ -62,16 +70,19 @@ app.use(async (ctx, next) => {
 // app.use(users.routes(), users.allowedMethods());
 
 // 校验token是否有效
-// app.use(koajwt({ secret: "liyutommy" }));
+// unless排除一些路径, 使得能顺利登录
+app.use(koajwt({ secret: "liyutommy" }).unless({
+	path: [/^\/api\/users\/login/]
+}));
 
 // 一级路由前缀
 router.prefix("/api");
 
-router.get("/leave/count", (ctx) => {
-	const token = ctx.request.headers.authorization.split(" ")[1];
-	const payload = jwt.verify(token, "liyutommy");
-	ctx.response.body = utils.success(payload);
-});
+// router.get("/leave/count", (ctx) => {
+// 	// const token = ctx.request.headers.authorization.split(" ")[1];
+// 	// const payload = jwt.verify(token, "liyutommy");
+// 	ctx.response.body = "body";
+// });
 
 // 注册二级路由
 router.use(users.routes(), users.allowedMethods());

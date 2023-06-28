@@ -14,7 +14,11 @@ router.post("/login", async (ctx) => {
 		// 获取请求的payload
 		const { userName, userPwd } = ctx.request.body;
 		// 获取数据库中的数据
-		const res = await UsersModel.findOne({ userName, userPwd });
+		// 参数: 选择对应的表, 选择对应的字段返回
+		const res = await UsersModel.findOne(
+			{ userName, userPwd },
+			"userId userName userEmail state role deptId roleList"
+		);
 		// _doc里面才是真正的数据
 		const data = res._doc;
 		// 生成jwt token, 30s之后过期
