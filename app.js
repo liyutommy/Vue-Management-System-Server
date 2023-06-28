@@ -7,6 +7,9 @@ const bodyparser = require("koa-bodyparser");
 // const logger = require('koa-logger')
 const log4js = require("./utils/log4js");
 const router = require("koa-router")();
+const jwt = require("jsonwebtoken");
+const utils = require("./utils/utils");
+const koajwt = require("koa-jwt")
 
 // const index = require("./routes/index");
 const users = require("./routes/users");
@@ -58,8 +61,18 @@ app.use(async (ctx, next) => {
 // app.use(index.routes(), index.allowedMethods());
 // app.use(users.routes(), users.allowedMethods());
 
+// 校验token是否有效
+// app.use(koajwt({ secret: "liyutommy" }));
+
 // 一级路由前缀
 router.prefix("/api");
+
+router.get("/leave/count", (ctx) => {
+	const token = ctx.request.headers.authorization.split(" ")[1];
+	const payload = jwt.verify(token, "liyutommy");
+	ctx.response.body = utils.success(payload);
+});
+
 // 注册二级路由
 router.use(users.routes(), users.allowedMethods());
 // 给app注册路由
