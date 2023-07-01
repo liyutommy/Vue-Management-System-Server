@@ -3,8 +3,10 @@
  */
 const router = require("koa-router")();
 const UsersModel = require("../models/userSchema");
+const CounterModel = require("../models/counterSchema");
 const utils = require("../utils/utils");
 const jwt = require("jsonwebtoken");
+const md5 = require("md5");
 
 // 二级路由前缀
 router.prefix("/users");
@@ -55,6 +57,7 @@ router.get("/list", async (ctx) => {
 	if (state && state !== "0") params.state = state;
 	// 根据条件查询所有用户列表
 	try {
+		// 忽略id和userPwd字段
 		const query = UsersModel.find(params, { _id: 0, userPwd: 0 });
 		// skip指定多少documents被跨过, limit是限制最大数量的文件数量
 		const list = await query.skip(skipIndex).limit(page.pageSize);
@@ -66,6 +69,117 @@ router.get("/list", async (ctx) => {
 		});
 	} catch (error) {
 		ctx.response.body = utils.fail(`查询异常: ${error.stack}`);
+	}
+});
+
+// 用户删除/批量删除
+router.post("/delete", async (ctx) => {
+	// 待删除的用户ID数组
+	const { userIds } = ctx.request.body;
+	try {
+		// User.updateMany({ $or: [{ userId: 10001 }, { userId: 10002 }] })
+		// 第一个参数: in操作符 - field只要和array中的任意一个value相同，那么该文档就会被检索出来
+		// 第二个参数: 更新的内容
+		const res = await UsersModel.updateMany(
+			{ userId: { $in: userIds } },
+			{ state: 2 }
+		);
+		if (res.modifiedCount) {
+			ctx.response.body = utils.success(res, `删除成功${res.modifiedCount}条`);
+			return;
+		}
+		ctx.response.body = utils.fail("删除失败");
+	} catch (error) {
+		ctx.response.body = utils.fail(`删除异常: ${error.stack}`);
+	}
+});
+
+// 用户新增/编辑
+router.post("/operate", async (ctx) => {
+	const {
+		userId,
+		userName,
+		userEmail,
+		mobile,
+		job,
+		state,
+		roleList,
+		deptId,
+		action,
+	} = ctx.request.body;
+	// 添加用户
+	if (action === "add") {
+		// 其中一个字段为空, 都返回错误
+		if (!userName || !userEmail || !deptId) {
+			ctx.response.body = utils.fail("参数错误", utils.CODE.PARAM_ERROR);
+			return;
+		}
+
+		// userName或者userEmail条件符合都行
+		const res = await UsersModel.findOne(
+			{ $or: [{ userName }, { userEmail }] },
+			"_id userName userEmail"
+		);
+		// 有结果, 则有重复用户
+		if (res) {
+			ctx.response.body = utils.fail(
+				`重复检测到有重复的用户, 信息如下: ${res.userName} - ${res.userEmail}`
+			);
+		} else {
+			try {
+				// $inc使得sequence_value自增长, 第三个参数使得返回新的数据库表
+				// 生成一个新的sequence_value
+				const doc = await CounterModel.findOneAndUpdate(
+					{ _id: "userId" },
+					{ $inc: { sequence_value: 1 } },
+					{ new: true }
+				);
+				// 创建一个用户对象
+				const user = new UsersModel({
+					userId: doc.sequence_value,
+					userName,
+					userPwd: md5("123456"),
+					userEmail,
+					mobile,
+					role: 1, //默认普通用户
+					roleList,
+					job,
+					state,
+					deptId,
+				});
+				// Saves this document by inserting a new document into the database
+				user.save();
+				ctx.response.body = utils.success("", "用户创建成功");
+			} catch (error) {
+				ctx.response.body = utils.fail(error.stack, "用户创建失败");
+			}
+		}
+	} else {
+		// 编辑用户
+		if (!deptId) {
+			// 部门字段为空, 返回错误
+			ctx.response.body = utils.fail("部门不能为空", utils.CODE.PARAM_ERROR);
+			return;
+		}
+
+		try {
+			// 通过id查找, 并且修改以下字段
+			// await会返回查询到的结果, 不加await返回的是Query对象
+			const res = await UsersModel.findOneAndUpdate(
+				{ userId },
+				{
+					mobile,
+					job,
+					state,
+					roleList,
+					deptId,
+				}
+			);
+			// data为空字符串
+			ctx.response.body = utils.success("", "更新成功");
+		} catch (error) {
+			ctx.response.body = utils.fail(res, "更新失败");
+		}
 	}
 });
 
