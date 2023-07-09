@@ -138,7 +138,7 @@ router.post("/operate", async (ctx) => {
 				const user = new UsersModel({
 					userId: doc.sequence_value,
 					userName,
-					userPwd: md5("123456"),
+					userPwd: md5("123456"), //默认加密密码
 					userEmail,
 					mobile,
 					role: 1, //默认普通用户

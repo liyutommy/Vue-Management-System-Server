@@ -13,6 +13,7 @@ const koajwt = require("koa-jwt")
 
 // const index = require("./routes/index");
 const users = require("./routes/users");
+const menus = require("./routes/menus")
 
 // error handler
 onerror(app);
@@ -86,6 +87,7 @@ router.prefix("/api");
 
 // 注册二级路由
 router.use(users.routes(), users.allowedMethods());
+router.use(menus.routes(), menus.allowedMethods());
 // 给app注册路由
 app.use(router.routes(), router.allowedMethods());
 
